@@ -1,0 +1,13 @@
+{
+  "name": "Sidelinq Turnier",
+  "author": "Jörg Pelka <support@sidelinq.de>",
+  "desc": "Live-Anzeige für Turniere aus dem Sidelinq-Turnierplaner: laufende Spiele, nächste Spiele, Ergebnisse und Tabellen.",
+  "repository": "https://github.com/kobelka/sidelinq-info-beamer",
+  "version": "1.0.0",
+  "lifecycle": "beta",
+  "platforms": ["pi/epoch-1", "pi/epoch-2"],
+  "offline": {
+    "support": "no",
+    "info": "Holt die Turnierdaten alle 10 Sekunden von sidelinq.de. Ohne Netz bleibt der letzte Stand stehen."
+  }
+}

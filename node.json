@@ -1,0 +1,22 @@
+{
+  "name": "Sidelinq Turnier",
+  "permissions": {
+    "network": "Holt die öffentlichen Turnierdaten und Vereinslogos von sidelinq.de."
+  },
+  "options": [
+    {
+      "type": "section",
+      "title": "Turnier",
+      "intro": "Den Beamer-Link findest du in Sidelinq im Turnier unter „Für den Fernseher oder Beamer in der Halle“. Für das nächste Turnier einfach den Link austauschen."
+    },
+    {
+      "type": "string",
+      "title": "Beamer-Link aus Sidelinq",
+      "name": "beamer_link",
+      "default": "",
+      "placeholder": "https://sidelinq.de/t/dein-turnier/beamer",
+      "hint": "Der Link zur Beamer-Ansicht des Turniers. Der normale Turnier-Link funktioniert auch.",
+      "ui_width": 12
+    }
+  ]
+}

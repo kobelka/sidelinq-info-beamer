@@ -1,0 +1,6 @@
+data.json
+*.tmp
+logo-*.png
+qr.png
+config.json
+__pycache__/
