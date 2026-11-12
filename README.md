@@ -15,7 +15,8 @@ Neue Ergebnisse blinken kurz auf. Ist das Netz weg, bleibt der letzte Stand steh
 ## Einrichtung
 
 1. Bei info-beamer.com anmelden und den Raspberry Pi einrichten (ein Gerät ist kostenlos).
-2. Unter **Packages → Add Package** diese Adresse eintragen: `https://github.com/kobelka/sidelinq-info-beamer`
+2. Unter **Packages → Add Package** genau diese Adresse eintragen: `https://github.com/kobelka/sidelinq-info-beamer.git#main`
+   Wichtig ist das `#main` am Ende: info-beamer lädt sonst den Branch `master`, das Paket liegt aber auf `main`.
 3. Aus dem Paket ein **Setup** anlegen und den **Beamer-Link** aus Sidelinq einfügen. Du findest ihn in Sidelinq im Turnier unter „Für den Fernseher oder Beamer in der Halle“, z. B. `https://sidelinq.de/t/dein-turnier/beamer`.
 4. Das Setup dem Pi zuweisen.
 
