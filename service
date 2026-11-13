@@ -33,7 +33,7 @@ try:
 except Exception:  # pragma: no cover
     BERLIN = None
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 POLL_SECONDS = 10
 FEED_VERSION = 1
 LOGO_SIZE = 128
@@ -210,6 +210,15 @@ def localize(feed):
     return feed
 
 
+def drop_none(value):
+    """null aus JSON entfernen: info-beamer liest null als wahren Wert, nicht als nil."""
+    if isinstance(value, dict):
+        return dict((k, drop_none(v)) for k, v in value.items() if v is not None)
+    if isinstance(value, list):
+        return [drop_none(v) for v in value if v is not None]
+    return value
+
+
 def publish(status, feed, message=None):
     out = {
         "status": status,
@@ -218,7 +227,7 @@ def publish(status, feed, message=None):
         "fetched": time.time(),
         "feed": feed,
     }
-    write_atomic("data.json", json.dumps(out).encode("utf-8"))
+    write_atomic("data.json", json.dumps(drop_none(out)).encode("utf-8"))
 
 
 def main():
