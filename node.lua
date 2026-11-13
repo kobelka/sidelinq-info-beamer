@@ -317,6 +317,8 @@ local function draw_live(feed, x, y, w)
         local logo_size = math.floor(44 * s)
         local goals_size = math.floor(39 * s)
         local rows = { { m.home, m.homeScore }, { m.away, m.awayScore } }
+        -- Tore mittig untereinander: eine „1“ ist schmaler als eine „0“
+        local goals_w = math.max(font_bold:width(m.homeScore or "", goals_size), font_bold:width(m.awayScore or "", goals_size))
         for r = 1, 2 do
             local ry = cy + 46 * s + (r - 1) * 50 * s
             local side, goals = rows[r][1], rows[r][2]
@@ -325,7 +327,7 @@ local function draw_live(feed, x, y, w)
             local nx = cx + pad + logo_size + 12 * s
             local gw = 64 * s
             text(font_semi, nx, ry, 46 * s, name, size, color or C.ink, cx + cw - pad - gw - nx - 8)
-            text(font_bold, cx + cw - pad - gw, ry, 46 * s, goals, goals_size, C.ink, gw, "right")
+            text(font_bold, cx + cw - pad - goals_w, ry, 46 * s, goals, goals_size, C.ink, goals_w, "center")
         end
         if m.note then
             text(font_bold, cx + pad, cy + card_h - 30 * s, 24 * s, m.note, label, C.amber900, cw - 2 * pad, "right")

@@ -33,7 +33,7 @@ try:
 except Exception:  # pragma: no cover
     BERLIN = None
 
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 POLL_SECONDS = 10
 FEED_VERSION = 1
 LOGO_SIZE = 128
