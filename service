@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover
     from urllib.parse import urlparse  # Python 3
 
 import requests
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 try:
     import pytz
@@ -33,10 +33,11 @@ try:
 except Exception:  # pragma: no cover
     BERLIN = None
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 POLL_SECONDS = 10
 FEED_VERSION = 1
 LOGO_SIZE = 128
+GLOW_STRENGTH = 0.55  # Deckkraft des hellen Scheins hinter Logos auf dunklem Grund
 LOGO_MAX_BYTES = 3 * 1024 * 1024
 MAX_LOGO_FILES = 150
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
@@ -109,9 +110,9 @@ logo_failed_at = {}
 
 
 def logo_names(url):
-    """Plakette für dunklen Grund, freies Logo für hellen Grund (laufende Spiele)."""
+    """Logo mit Schein für dunklen Grund, freies Logo für hellen Grund (laufende Spiele), Plakette für den Kopf."""
     h = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
-    return "logo4-%s.png" % h, "logo4t-%s.png" % h
+    return "logo5-%s.png" % h, "logo5t-%s.png" % h, "logo5p-%s.png" % h
 
 
 def free(img):
@@ -140,17 +141,34 @@ def plaque(img):
     return card
 
 
+def glow(img):
+    """Logo frei auf dunklem Grund, mit dezentem hellem Schein entlang der Umrisse (dunkle Logos bleiben lesbar)."""
+    resample = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS
+    inner = int(LOGO_SIZE * 0.84)  # Platz für den Schein
+    img = img.copy()
+    img.thumbnail((inner, inner), resample)
+    pos = ((LOGO_SIZE - img.size[0]) // 2, (LOGO_SIZE - img.size[1]) // 2)
+    shape = Image.new("L", (LOGO_SIZE, LOGO_SIZE), 0)
+    shape.paste(img.split()[3], pos)
+    halo = shape.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(6))
+    halo = halo.point(lambda v: int(v * GLOW_STRENGTH))
+    card = Image.new("RGBA", (LOGO_SIZE, LOGO_SIZE), (255, 255, 255, 0))
+    card.putalpha(halo)
+    card.paste(img, pos, img)
+    return card
+
+
 def fetch_logo(url):
-    """Liefert (Plakette, frei) als Dateinamen oder (None, None)."""
+    """Liefert (Schein, frei, Plakette) als Dateinamen oder (None, None, None)."""
     if not url:
-        return None, None
+        return None, None, None
     if url in logo_files:
         return logo_files[url]
     # Fehlgeschlagene Logos erst nach 5 Minuten erneut versuchen.
     if time.time() - logo_failed_at.get(url, 0) < 300:
-        return None, None
+        return None, None, None
     names = logo_names(url)
-    if os.path.exists(names[0]) and os.path.exists(names[1]):
+    if all(os.path.exists(n) for n in names):
         logo_files[url] = names
         return names
     try:
@@ -160,7 +178,7 @@ def fetch_logo(url):
         if len(data) > LOGO_MAX_BYTES:
             raise ValueError("Logo zu groß")
         img = Image.open(BytesIO(data)).convert("RGBA")
-        for name, make in zip(names, (plaque, free)):
+        for name, make in zip(names, (glow, free, plaque)):
             out = BytesIO()
             make(img).save(out, "PNG")
             write_atomic(name, out.getvalue())
@@ -169,12 +187,12 @@ def fetch_logo(url):
     except Exception as e:
         log("Logo nicht geladen:", url, e)
         logo_failed_at[url] = time.time()
-        return None, None
+        return None, None, None
 
 
 def cleanup_logos(keep):
     files = [f for f in os.listdir(".") if f.startswith("logo") and f.endswith(".png")]
-    old = [f for f in files if not f.startswith("logo4")]  # Bilder älterer Paketversionen
+    old = [f for f in files if not f.startswith("logo5")]  # Bilder älterer Paketversionen
     if len(files) <= MAX_LOGO_FILES and not old:
         return
     for f in files:
@@ -205,9 +223,9 @@ def write_qr(data_url):
 # ---------- Daten ----------
 
 def localize_side(side, used):
-    dark, light = fetch_logo(side.get("logo"))
+    dark, light, badge = fetch_logo(side.get("logo"))
     if dark:
-        used.update((dark, light))
+        used.update((dark, light, badge))
     side["logo"] = dark
     side["logoLight"] = light
     return side
@@ -229,10 +247,10 @@ def localize(feed):
                     localize_side(m["home"], used)
                     localize_side(m["away"], used)
     for key in ("organizerLogo", "sponsorLogo"):
-        dark, light = fetch_logo(feed.get(key))
+        dark, light, badge = fetch_logo(feed.get(key))
         if dark:
-            used.update((dark, light))
-        feed[key] = dark
+            used.update((dark, light, badge))
+        feed[key] = badge
     feed["qr"] = "qr.png" if write_qr(feed.get("qr")) else None
     cleanup_logos(used)
     return feed
