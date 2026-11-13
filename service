@@ -33,7 +33,7 @@ try:
 except Exception:  # pragma: no cover
     BERLIN = None
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 POLL_SECONDS = 10
 FEED_VERSION = 1
 LOGO_SIZE = 128
@@ -111,7 +111,7 @@ logo_failed_at = {}
 def logo_names(url):
     """Plakette für dunklen Grund, freies Logo für hellen Grund (laufende Spiele)."""
     h = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
-    return "logo3-%s.png" % h, "logo3t-%s.png" % h
+    return "logo4-%s.png" % h, "logo4t-%s.png" % h
 
 
 def free(img):
@@ -174,7 +174,7 @@ def fetch_logo(url):
 
 def cleanup_logos(keep):
     files = [f for f in os.listdir(".") if f.startswith("logo") and f.endswith(".png")]
-    old = [f for f in files if not f.startswith("logo3")]  # Bilder älterer Paketversionen
+    old = [f for f in files if not f.startswith("logo4")]  # Bilder älterer Paketversionen
     if len(files) <= MAX_LOGO_FILES and not old:
         return
     for f in files:
