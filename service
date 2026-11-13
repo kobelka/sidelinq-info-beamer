@@ -33,7 +33,7 @@ try:
 except Exception:  # pragma: no cover
     BERLIN = None
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 POLL_SECONDS = 10
 FEED_VERSION = 1
 LOGO_SIZE = 128
@@ -104,12 +104,24 @@ def clock_seconds():
 
 # ---------- Bilder ----------
 
-logo_files = {}  # URL -> Dateiname (oder None bei Fehler)
+logo_files = {}  # URL -> (Plakette, frei)
 logo_failed_at = {}
 
 
-def logo_name(url):
-    return "logo2-%s.png" % hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
+def logo_names(url):
+    """Plakette für dunklen Grund, freies Logo für hellen Grund (laufende Spiele)."""
+    h = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
+    return "logo3-%s.png" % h, "logo3t-%s.png" % h
+
+
+def free(img):
+    """Logo ohne Hintergrund, durchsichtig wie geliefert."""
+    resample = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS
+    img = img.copy()
+    img.thumbnail((LOGO_SIZE, LOGO_SIZE), resample)
+    card = Image.new("RGBA", (LOGO_SIZE, LOGO_SIZE), (255, 255, 255, 0))
+    card.paste(img, ((LOGO_SIZE - img.size[0]) // 2, (LOGO_SIZE - img.size[1]) // 2), img)
+    return card
 
 
 def plaque(img):
@@ -129,17 +141,18 @@ def plaque(img):
 
 
 def fetch_logo(url):
+    """Liefert (Plakette, frei) als Dateinamen oder (None, None)."""
     if not url:
-        return None
+        return None, None
     if url in logo_files:
         return logo_files[url]
     # Fehlgeschlagene Logos erst nach 5 Minuten erneut versuchen.
     if time.time() - logo_failed_at.get(url, 0) < 300:
-        return None
-    name = logo_name(url)
-    if os.path.exists(name):
-        logo_files[url] = name
-        return name
+        return None, None
+    names = logo_names(url)
+    if os.path.exists(names[0]) and os.path.exists(names[1]):
+        logo_files[url] = names
+        return names
     try:
         r = session.get(url, timeout=10, stream=True)
         r.raise_for_status()
@@ -147,20 +160,21 @@ def fetch_logo(url):
         if len(data) > LOGO_MAX_BYTES:
             raise ValueError("Logo zu groß")
         img = Image.open(BytesIO(data)).convert("RGBA")
-        out = BytesIO()
-        plaque(img).save(out, "PNG")
-        write_atomic(name, out.getvalue())
-        logo_files[url] = name
-        return name
+        for name, make in zip(names, (plaque, free)):
+            out = BytesIO()
+            make(img).save(out, "PNG")
+            write_atomic(name, out.getvalue())
+        logo_files[url] = names
+        return names
     except Exception as e:
         log("Logo nicht geladen:", url, e)
         logo_failed_at[url] = time.time()
-        return None
+        return None, None
 
 
 def cleanup_logos(keep):
-    files = [f for f in os.listdir(".") if f.startswith(("logo-", "logo2-")) and f.endswith(".png")]
-    old = [f for f in files if f.startswith("logo-")]  # eckige Kärtchen bis 1.0.1
+    files = [f for f in os.listdir(".") if f.startswith("logo") and f.endswith(".png")]
+    old = [f for f in files if not f.startswith("logo3")]  # Bilder älterer Paketversionen
     if len(files) <= MAX_LOGO_FILES and not old:
         return
     for f in files:
@@ -169,8 +183,8 @@ def cleanup_logos(keep):
                 os.unlink(f)
             except OSError:
                 pass
-    for url, name in list(logo_files.items()):
-        if name not in keep:
+    for url, names in list(logo_files.items()):
+        if names[0] not in keep:
             del logo_files[url]
 
 
@@ -191,10 +205,11 @@ def write_qr(data_url):
 # ---------- Daten ----------
 
 def localize_side(side, used):
-    name = fetch_logo(side.get("logo"))
-    if name:
-        used.add(name)
-    side["logo"] = name
+    dark, light = fetch_logo(side.get("logo"))
+    if dark:
+        used.update((dark, light))
+    side["logo"] = dark
+    side["logoLight"] = light
     return side
 
 
@@ -214,10 +229,10 @@ def localize(feed):
                     localize_side(m["home"], used)
                     localize_side(m["away"], used)
     for key in ("organizerLogo", "sponsorLogo"):
-        name = fetch_logo(feed.get(key))
-        if name:
-            used.add(name)
-        feed[key] = name
+        dark, light = fetch_logo(feed.get(key))
+        if dark:
+            used.update((dark, light))
+        feed[key] = dark
     feed["qr"] = "qr.png" if write_qr(feed.get("qr")) else None
     cleanup_logos(used)
     return feed

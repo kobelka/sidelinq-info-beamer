@@ -307,7 +307,7 @@ local function draw_live(feed, x, y, w)
         for r = 1, 2 do
             local ry = cy + 46 * s + (r - 1) * 50 * s
             local side, goals = rows[r][1], rows[r][2]
-            logo(side.logo, cx + pad, ry + (46 * s - logo_size) / 2, logo_size)
+            logo(side.logoLight or side.logo, cx + pad, ry + (46 * s - logo_size) / 2, logo_size)
             local name, color = side_name(side)
             local nx = cx + pad + logo_size + 12 * s
             local gw = 64 * s
