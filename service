@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover
     from urllib.parse import urlparse  # Python 3
 
 import requests
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageFilter
 
 try:
     import pytz
@@ -33,7 +33,7 @@ try:
 except Exception:  # pragma: no cover
     BERLIN = None
 
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 POLL_SECONDS = 10
 FEED_VERSION = 1
 LOGO_SIZE = 128
@@ -105,14 +105,14 @@ def clock_seconds():
 
 # ---------- Bilder ----------
 
-logo_files = {}  # URL -> (Plakette, frei)
+logo_files = {}  # URL -> (mit Schein, frei)
 logo_failed_at = {}
 
 
 def logo_names(url):
-    """Logo mit Schein für dunklen Grund, freies Logo für hellen Grund (laufende Spiele), Plakette für den Kopf."""
+    """Logo mit Schein für dunklen Grund, freies Logo für hellen Grund (laufende Spiele)."""
     h = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
-    return "logo5-%s.png" % h, "logo5t-%s.png" % h, "logo5p-%s.png" % h
+    return "logo5-%s.png" % h, "logo5t-%s.png" % h
 
 
 def free(img):
@@ -121,22 +121,6 @@ def free(img):
     img = img.copy()
     img.thumbnail((LOGO_SIZE, LOGO_SIZE), resample)
     card = Image.new("RGBA", (LOGO_SIZE, LOGO_SIZE), (255, 255, 255, 0))
-    card.paste(img, ((LOGO_SIZE - img.size[0]) // 2, (LOGO_SIZE - img.size[1]) // 2), img)
-    return card
-
-
-def plaque(img):
-    """Runde weiße Plakette, Logo mittig im Kreis, außen durchsichtig."""
-    resample = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS
-    inner = int(LOGO_SIZE * 0.70)  # Quadrat passt ganz in den Kreis
-    img = img.copy()
-    img.thumbnail((inner, inner), resample)
-    big = LOGO_SIZE * 4  # Kreis vierfach zeichnen und verkleinern = glatter Rand
-    mask = Image.new("L", (big, big), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, big - 1, big - 1), fill=255)
-    mask = mask.resize((LOGO_SIZE, LOGO_SIZE), resample)
-    card = Image.new("RGBA", (LOGO_SIZE, LOGO_SIZE), (255, 255, 255, 0))
-    card.paste((255, 255, 255, 255), (0, 0, LOGO_SIZE, LOGO_SIZE), mask)
     card.paste(img, ((LOGO_SIZE - img.size[0]) // 2, (LOGO_SIZE - img.size[1]) // 2), img)
     return card
 
@@ -159,14 +143,14 @@ def glow(img):
 
 
 def fetch_logo(url):
-    """Liefert (Schein, frei, Plakette) als Dateinamen oder (None, None, None)."""
+    """Liefert (Schein, frei) als Dateinamen oder (None, None)."""
     if not url:
-        return None, None, None
+        return None, None
     if url in logo_files:
         return logo_files[url]
     # Fehlgeschlagene Logos erst nach 5 Minuten erneut versuchen.
     if time.time() - logo_failed_at.get(url, 0) < 300:
-        return None, None, None
+        return None, None
     names = logo_names(url)
     if all(os.path.exists(n) for n in names):
         logo_files[url] = names
@@ -178,7 +162,7 @@ def fetch_logo(url):
         if len(data) > LOGO_MAX_BYTES:
             raise ValueError("Logo zu groß")
         img = Image.open(BytesIO(data)).convert("RGBA")
-        for name, make in zip(names, (glow, free, plaque)):
+        for name, make in zip(names, (glow, free)):
             out = BytesIO()
             make(img).save(out, "PNG")
             write_atomic(name, out.getvalue())
@@ -187,7 +171,7 @@ def fetch_logo(url):
     except Exception as e:
         log("Logo nicht geladen:", url, e)
         logo_failed_at[url] = time.time()
-        return None, None, None
+        return None, None
 
 
 def cleanup_logos(keep):
@@ -223,9 +207,9 @@ def write_qr(data_url):
 # ---------- Daten ----------
 
 def localize_side(side, used):
-    dark, light, badge = fetch_logo(side.get("logo"))
+    dark, light = fetch_logo(side.get("logo"))
     if dark:
-        used.update((dark, light, badge))
+        used.update((dark, light))
     side["logo"] = dark
     side["logoLight"] = light
     return side
@@ -247,10 +231,10 @@ def localize(feed):
                     localize_side(m["home"], used)
                     localize_side(m["away"], used)
     for key in ("organizerLogo", "sponsorLogo"):
-        dark, light, badge = fetch_logo(feed.get(key))
+        dark, light = fetch_logo(feed.get(key))
         if dark:
-            used.update((dark, light, badge))
-        feed[key] = badge
+            used.update((dark, light))
+        feed[key] = dark  # Gastgeber und Sponsor oben frei mit Schein
     feed["qr"] = "qr.png" if write_qr(feed.get("qr")) else None
     cleanup_logos(used)
     return feed

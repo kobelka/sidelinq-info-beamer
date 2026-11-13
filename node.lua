@@ -50,6 +50,7 @@ local C = {
     emerald400 = hex "#34d399",
     emeraldRow = hex("#022c22", 0.6),
     red400 = hex "#f87171",
+    linq = hex "#22e88b",        -- Sidelinq-Grün der Wortmarke
 }
 
 local textures = {}
@@ -227,11 +228,23 @@ local function draw_header(feed)
     rect(0, HEADER_H - 2, W, HEADER_H, C.line)
     local x = 32
     if feed.organizerLogo then
-        logo(feed.organizerLogo, x, (HEADER_H - 72) / 2, 72)
+        -- Freies Logo mit Schein: das Wappen selbst füllt etwa 0,84 der Bildfläche,
+        -- deshalb größer zeichnen, damit es so groß wirkt wie früher die Plakette.
+        local size = 92
+        logo(feed.organizerLogo, x - 10, (HEADER_H - size) / 2, size)
         x = x + 72 + 24
     end
     local right = 300
-    local maxw = W - x - right - 32
+    local reserve = right
+    if feed.sponsorLogo then
+        -- Sponsor („Präsentiert von“) prominent oben links neben der Uhr
+        local size = 92  -- gleich groß wie das Gastgeber-Logo
+        local cw = math.max(font_bold:width(clock_text(), 52), 160)
+        local sx = W - 32 - cw - 24 - size
+        logo(feed.sponsorLogo, sx, (HEADER_H - size) / 2, size)
+        reserve = W - 32 - sx + 24
+    end
+    local maxw = W - x - reserve - 32
     text(font_bold, x, 18, 58, feed.title, 48, C.white, maxw)
     local sub = feed.date or ""
     if feed.venue and feed.venue ~= "" then sub = sub .. " · " .. feed.venue end
@@ -266,11 +279,11 @@ local function draw_footer(feed)
         text(font_semi, x + 148, y + 80, 30, "live auf dem Handy", 23, C.lighter)
         x = x + 148 + font_semi:width("Spielplan und Tabellen", 23) + 40
     end
-    sidelinq_icon:draw(x, y + 66, x + 30, y + 96)
-    text(font_regular, x + 42, y + 66, 30, "Turnierplaner · sidelinq.de", 19, C.muted)
-    if feed.sponsorLogo then
-        logo(feed.sponsorLogo, W - 32 - 100, y + 31, 100)
-    end
+    -- Sidelinq-Wortmarke groß (Werbung), darunter die Adresse
+    sidelinq_icon:draw(x, y + 30, x + 72, y + 102)
+    local w = text(font_bold, x + 86, y + 28, 64, "Side", 54, C.white)
+    text(font_bold, x + 86 + w, y + 28, 64, "linq", 54, C.linq)
+    text(font_regular, x + 88, y + 96, 30, "Turnierplaner · sidelinq.de", 21, C.soft)
 end
 
 -- ---------- Linke Spalte ----------
