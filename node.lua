@@ -234,20 +234,44 @@ local function draw_header(feed)
         logo(feed.organizerLogo, x - 10, (HEADER_H - size) / 2, size)
         x = x + 72 + 24
     end
-    local right = 300
+    -- Platz für Uhr bzw. „Stand … Uhr“, nicht breiter als nötig (sonst Lücke neben der Uhr)
+    local right = math.ceil(math.max(font_bold:width("00:00", 52), font_semi:width("Stand 00:00 Uhr", 19))) + 4
     local reserve = right
-    if feed.sponsorLogo then
-        -- Sponsor („Präsentiert von“) prominent oben links neben der Uhr
-        local size = 92  -- gleich groß wie das Gastgeber-Logo
-        local cw = math.max(font_bold:width(clock_text(), 52), 160)
-        local sx = W - 32 - cw - 24 - size
-        logo(feed.sponsorLogo, sx, (HEADER_H - size) / 2, size)
-        reserve = W - 32 - sx + 24
+    local pr = feed.progress
+    if pr and pr.total and pr.total > 0 then
+        -- Fortschritt „X / Y Spiele“ mit Balken und Zeitraum, links neben Sponsor bzw. Uhr
+        local pw = 320
+        local edge = W - reserve - 32  -- bisher rechtes Ende des Titelbereichs
+        local px = edge - 32 - pw
+        local played, total = int(pr.played or 0), int(pr.total)
+        local suffix = " Spiele"
+        local w_total = font_bold:width(total, 30)
+        local w_suffix = font_semi:width(suffix, 21)
+        local w_sep = font_bold:width(" / ", 30)
+        local w_played = font_bold:width(played, 30)
+        local tx = px + pw - w_suffix - w_total - w_sep - w_played
+        text(font_bold, tx, 16, 36, played, 30, C.emerald300)
+        text(font_bold, tx + w_played, 16, 36, " / ", 30, C.soft)
+        text(font_bold, tx + w_played + w_sep, 16, 36, total, 30, C.white)
+        text(font_semi, tx + w_played + w_sep + w_total, 20, 36, suffix, 21, C.soft)
+        local frac = math.max(0, math.min(1, (pr.played or 0) / pr.total))
+        rect(px, 60, px + pw, 71, C.line)
+        if frac > 0 then rect(px, 60, px + pw * frac, 71, C.emerald400) end
+        if pr.timeRangeLabel then
+            text(font_semi, px, 78, 28, pr.timeRangeLabel, 19, C.soft, pw, "right")
+        end
+        rect(edge - 16, 32, edge - 14, 96, C.dot)
+        reserve = W - px
+        -- dünner Strich am Kopfende wächst mit
+        rect(0, HEADER_H - 5, W, HEADER_H, C.line)
+        if frac > 0 then rect(0, HEADER_H - 5, W * frac, HEADER_H, C.emerald400) end
     end
     local maxw = W - x - reserve - 32
     text(font_bold, x, 18, 58, feed.title, 48, C.white, maxw)
     local sub = feed.date or ""
     if feed.venue and feed.venue ~= "" then sub = sub .. " · " .. feed.venue end
+    if pr and pr.formatLabel then sub = sub .. " · " .. pr.formatLabel end
+    if pr and pr.durationLabel then sub = sub .. " · " .. pr.durationLabel end
     text(font_regular, x, 76, 32, sub, 24, C.soft, maxw)
 
     -- Uhr und „Live“ bzw. Hinweis bei Verbindungsproblemen
@@ -284,6 +308,11 @@ local function draw_footer(feed)
     local w = text(font_bold, x + 86, y + 28, 64, "Side", 54, C.white)
     text(font_bold, x + 86 + w, y + 28, 64, "linq", 54, C.linq)
     text(font_regular, x + 88, y + 96, 30, "Turnierplaner · sidelinq.de", 21, C.soft)
+    if feed.sponsorLogo then
+        -- Sponsor groß unten rechts, wie in der Browser-Ansicht
+        local size = 136
+        logo(feed.sponsorLogo, W - 32 - size + 8, y + (FOOTER_H - size) / 2 + 1, size)
+    end
 end
 
 -- ---------- Linke Spalte ----------
