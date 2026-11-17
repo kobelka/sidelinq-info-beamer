@@ -603,7 +603,10 @@ function node.render()
     local y = draw_live(feed, lx, top, left_w)
     draw_upcoming(feed, lx, y, left_w, bottom)
     if #(feed.live or {}) == 0 and #(feed.next or {}) == 0 and #(feed.recent or {}) == 0 then
-        text(font_regular, lx, (top + bottom) / 2 - 30, 60, "Der Spielplan erscheint hier, sobald er steht.", 32, C.soft, left_w, "center")
+        local pr = feed.progress
+        local done = pr and pr.total and int(pr.total) > 0 and int(pr.played or 0) >= int(pr.total)
+        local msg = done and "Alle Spiele sind gespielt. Danke fürs Mitfiebern!" or "Der Spielplan erscheint hier, sobald er steht."
+        text(font_regular, lx, (top + bottom) / 2 - 30, 60, msg, 32, C.soft, left_w, "center")
     end
     draw_right(feed, rx, top, rw, bottom)
     draw_footer(feed)
